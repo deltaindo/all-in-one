@@ -1,0 +1,33 @@
+{
+  "name": "delta-unified",
+  "version": "1.0.0",
+  "description": "Unified Delta Indonesia platform (PIC, CRM, Inventory, Landing Page)",
+  "private": true,
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "start": "turbo run start",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "type-check": "turbo run type-check",
+    "clean": "turbo run clean && find . -type d -name node_modules -exec rm -rf {} + 2>/dev/null || true",
+    "db:push": "cd packages/database && npx prisma db push",
+    "db:generate": "cd packages/database && npx prisma generate",
+    "db:migrate": "cd packages/database && npx prisma migrate dev",
+    "db:migrate-prod": "cd packages/database && npx prisma migrate deploy",
+    "db:seed": "cd packages/database && node prisma/seed.js",
+    "db:studio": "cd packages/database && npx prisma studio"
+  },
+  "keywords": ["next.js", "monorepo", "turborepo", "typescript"],
+  "author": "Delta Indonesia",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "turbo": "^1.11.3",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
