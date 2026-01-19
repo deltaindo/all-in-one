@@ -27,6 +27,8 @@ model User {
   pic       PICUser?      @relation("UserToPIC")
   crmContacts CRMContact[] @relation("UserToCRMContact")
   inventory InventoryItem[] @relation("UserToInventoryItem")
+  registrationLinks RegistrationLink[] @relation("UserToRegistrationLink")
+  auditLogs AuditLog[] @relation("UserToAuditLog")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -39,6 +41,7 @@ enum UserRole {
   MANAGER
   USER
   VIEWER
+  STAFF
 }
 
 // ============================================================================
@@ -242,22 +245,358 @@ enum MovementType {
 }
 
 // ============================================================================
+// PICNEW (K3 Training) MODULE MODELS
+// ============================================================================
+
+model Bidang {
+  id        String   @id @default(cuid())
+  name      String   @unique  // e.g., "Kesehatan", "Keselamatan"
+  code      String   @unique
+  description String?
+
+  // Relations
+  trainingPrograms TrainingProgram[] @relation("BidangToTrainingProgram")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("bidangs")
+}
+
+model TrainingProgram {
+  id        String   @id @default(cuid())
+  name      String   // e.g., "BNSP K3 Umum"
+  code      String   @unique
+  bidangId  String
+  bidang    Bidang   @relation("BidangToTrainingProgram", fields: [bidangId], references: [id], onDelete: Cascade)
+  duration  Int?     // in hours
+  description String?
+
+  // Relations
+  classes   TrainingClass[] @relation("ProgramToClass")
+  requiredDocuments RequiredDocument[] @relation("ProgramToRequiredDocument")
+  registrationLinks RegistrationLink[] @relation("ProgramToLink")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("training_programs")
+}
+
+model TrainingClass {
+  id        String   @id @default(cuid())
+  name      String   // e.g., "Kelas A", "Kelas B"
+  code      String   @unique
+  trainingProgramId String
+  trainingProgram TrainingProgram @relation("ProgramToClass", fields: [trainingProgramId], references: [id], onDelete: Cascade)
+  personnelTypeIds String[]  // JSON array of personnelTypeIds
+  maxParticipants Int  @default(30)
+
+  // Relations
+  registrations Registration[] @relation("ClassToRegistration")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("training_classes")
+}
+
+model PersonnelType {
+  id        String   @id @default(cuid())
+  name      String   @unique  // e.g., "Manager", "Supervisor", "Worker"
+  code      String   @unique
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("personnel_types")
+}
+
+model DocumentType {
+  id        String   @id @default(cuid())
+  name      String   @unique  // e.g., "KTP", "Surat Izin Kerja"
+  code      String   @unique
+  description String?
+  isMandatory Boolean @default(true)
+
+  // Relations
+  requiredDocuments RequiredDocument[] @relation("DocTypeToRequired")
+  traineeDocuments TraineeDocument[] @relation("DocTypeToTrainee")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("document_types")
+}
+
+model RequiredDocument {
+  id        String   @id @default(cuid())
+  trainingProgramId String
+  trainingProgram TrainingProgram @relation("ProgramToRequiredDocument", fields: [trainingProgramId], references: [id], onDelete: Cascade)
+  documentTypeId String
+  documentType DocumentType @relation("DocTypeToRequired", fields: [documentTypeId], references: [id], onDelete: Cascade)
+  isMandatory Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([trainingProgramId, documentTypeId])
+  @@map("required_documents")
+}
+
+model RegistrationLink {
+  id        String   @id @default(cuid())
+  code      String   @unique  // Auto-generated UUID
+  trainingProgramId String
+  trainingProgram TrainingProgram @relation("ProgramToLink", fields: [trainingProgramId], references: [id], onDelete: Cascade)
+  createdBy String
+  createdByUser User @relation("UserToRegistrationLink", fields: [createdBy], references: [id], onDelete: Restrict)
+  maxRegistrations Int?  // null = unlimited
+  status    LinkStatus @default(ACTIVE)
+  expiredAt DateTime?
+
+  // Relations
+  registrations Registration[] @relation("LinkToRegistration")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("registration_links")
+  @@index([code])
+  @@index([trainingProgramId])
+}
+
+enum LinkStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+}
+
+model Registration {
+  id        String   @id @default(cuid())
+  registrationLinkId String
+  registrationLink RegistrationLink @relation("LinkToRegistration", fields: [registrationLinkId], references: [id], onDelete: Cascade)
+  fullName  String
+  email     String
+  phoneNumber String
+  bidang    String   // bidang name
+  trainingClassId String?
+  trainingClass TrainingClass? @relation("ClassToRegistration", fields: [trainingClassId], references: [id], onDelete: SetNull)
+  personnelTypeId String?
+  
+  // Address
+  provinceId String?
+  regencyId  String?
+  districtId String?
+  villageId  String?
+  address    String?
+
+  status    RegistrationStatus @default(PENDING)
+  rejectionReason String?
+  submissionToken String @unique
+
+  // Relations
+  documents TraineeDocument[] @relation("RegistrationToDocument")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  approvedAt DateTime?
+
+  @@map("registrations")
+  @@index([registrationLinkId])
+  @@index([status])
+  @@index([submissionToken])
+}
+
+enum RegistrationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+model TraineeDocument {
+  id        String   @id @default(cuid())
+  registrationId String
+  registration Registration @relation("RegistrationToDocument", fields: [registrationId], references: [id], onDelete: Cascade)
+  documentTypeId String
+  documentType DocumentType @relation("DocTypeToTrainee", fields: [documentTypeId], references: [id], onDelete: Restrict)
+  fileName  String
+  fileUrl   String   // URL to cloud storage
+  status    DocumentStatus @default(PENDING)
+  verificationNotes String?
+
+  uploadedAt DateTime @default(now())
+  verifiedAt DateTime?
+
+  @@map("trainee_documents")
+  @@index([registrationId])
+  @@index([documentTypeId])
+}
+
+enum DocumentStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+model Certificate {
+  id        String   @id @default(cuid())
+  registrationId String @unique
+  certificateNumber String @unique
+  issuedDate DateTime
+  validUntil DateTime?
+  fileUrl   String?
+  verificationCode String @unique // For public verification
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("certificates")
+  @@index([verificationCode])
+}
+
+model Region {
+  id        String   @id @default(cuid())
+  name      String   @unique  // Province name
+  code      String   @unique
+
+  // Relations
+  regencies Regency[] @relation("RegionToRegency")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("regions")
+}
+
+model Regency {
+  id        String   @id @default(cuid())
+  regionId  String
+  region    Region   @relation("RegionToRegency", fields: [regionId], references: [id], onDelete: Cascade)
+  name      String   // Regency/City name
+  code      String
+
+  // Relations
+  districts District[] @relation("RegencyToDistrict")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([regionId, code])
+  @@map("regencies")
+}
+
+model District {
+  id        String   @id @default(cuid())
+  regencyId String
+  regency   Regency  @relation("RegencyToDistrict", fields: [regencyId], references: [id], onDelete: Cascade)
+  name      String   // District/Sub-district name
+  code      String
+
+  // Relations
+  villages  Village[] @relation("DistrictToVillage")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([regencyId, code])
+  @@map("districts")
+}
+
+model Village {
+  id        String   @id @default(cuid())
+  districtId String
+  district  District @relation("DistrictToVillage", fields: [districtId], references: [id], onDelete: Cascade)
+  name      String   // Village/Sub-village name
+  code      String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([districtId, code])
+  @@map("villages")
+}
+
+model PIC {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  phoneNumber String
+  department String?
+  isActive  Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("pics")
+}
+
+model Marketing {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  phoneNumber String
+  region    String?  // Region responsible for
+  isActive  Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("marketing")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  type      NotificationType
+  recipient String  // email or phone
+  subject   String?
+  content   String
+  status    NotificationStatus @default(PENDING)
+  sentAt    DateTime?
+  failureReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("notifications")
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum NotificationType {
+  EMAIL
+  WHATSAPP
+  SMS
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+// ============================================================================
 // AUDIT & LOGGING
 // ============================================================================
 
 model AuditLog {
   id        String   @id @default(cuid())
-  action    String
-  entity    String    // e.g., "User", "Contact", "InventoryItem"
-  entityId  String
-  changes   Json?
-  userId    String?
+  userId    String
+  user      User     @relation("UserToAuditLog", fields: [userId], references: [id], onDelete: SetNull)
+  action    String   // e.g., "CREATE_LINK", "APPROVE_REGISTRATION"
+  description String?
+  targetId  String?  // ID of affected entity
+  oldValue  Json?
+  newValue  Json?
   ipAddress String?
   userAgent String?
 
   createdAt DateTime @default(now())
 
   @@map("audit_logs")
-  @@index([entityId])
+  @@index([userId])
+  @@index([action])
   @@index([createdAt])
 }
