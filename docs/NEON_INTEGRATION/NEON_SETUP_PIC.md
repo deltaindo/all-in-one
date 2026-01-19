@@ -113,7 +113,7 @@ npm run dev
 - [ ] Open http://localhost:3000/login
 - [ ] Enter credentials:
   - [ ] Email: `admin@deltaindo.co.id`
-  - [ ] Password: `Admin123#` (your seed password)
+  - [ ] Password: `admin123#` (your seed password)
 - [ ] Click Login
 - [ ] Verify:
   - [ ] Login succeeds
@@ -162,7 +162,7 @@ npm run dev
 - [ ] Go to production URL
 - [ ] Try login with:
   - [ ] Email: `admin@deltaindo.co.id`
-  - [ ] Password: `Admin123#`
+  - [ ] Password: `admin123#`
 - [ ] Verify:
   - [ ] Login works
   - [ ] Dashboard loads
@@ -235,7 +235,7 @@ psql "postgresql://[user]:[password]@[project]-pooler.neon.tech:6432/pic_prod?ss
 
 ### Issue: Login returns 401 Unauthorized
 - [ ] Verify admin user was seeded: `npx prisma studio`
-- [ ] Check password is exactly `Admin123#`
+- [ ] Check password is exactly `admin123#`
 - [ ] Verify no typos in email
 
 ### Issue: "Connection pool limit exceeded"

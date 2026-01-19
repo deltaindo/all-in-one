@@ -31,7 +31,7 @@ describe('Auth Routes', () => {
       try {
         await client.post('/api/admin/auth/login', {
           email: 'nonexistent@example.com',
-          password: 'password123',
+          password: 'Admin123',
         });
         expect(true).toBe(false); // Should not reach here
       } catch (error: any) {

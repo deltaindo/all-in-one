@@ -1,7 +1,9 @@
 import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { PrismaClient } from '@delta/database';
+import 'dotenv/config';
+import { PrismaClient } from '../generated/prisma';
+import { PrismaPg } from '@prisma/adapter-pg';
 
 // Import routes
 import authRoutes from './routes/auth';
@@ -13,9 +15,17 @@ import publicRoutes from './routes/public';
 
 dotenv.config();
 
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  throw new Error('DATABASE_URL environment variable is not set')
+}
+
+
 const app: Express = express();
-const prisma = new PrismaClient();
+const adapter = new PrismaPg({ connectionString })
+const prisma = new PrismaClient({ adapter })
 const PORT = process.env.PORT || 5001;
+
 
 // Middleware
 app.use(cors());

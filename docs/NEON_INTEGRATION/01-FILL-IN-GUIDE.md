@@ -225,7 +225,7 @@ npm run dev
 1. Open: http://localhost:3000/login
 2. Enter credentials:
    - **Email**: `admin@deltaindo.co.id`
-   - **Password**: `Admin123#`
+   - **Password**: `admin123#`
 3. Click Login
 4. Verify dashboard loads
 
@@ -265,7 +265,7 @@ git push origin main
 
 1. Open your production URL
 2. Go to `/login`
-3. Enter: admin@deltaindo.co.id / Admin123#
+3. Enter: admin@deltaindo.co.id / admin123#
 4. Verify dashboard loads
 
 ---

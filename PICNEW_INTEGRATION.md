@@ -101,8 +101,8 @@ npm run dev
 # Use docker if available
 docker run -d \
   -e POSTGRES_USER=deltauser \
-  -e POSTGRES_PASSWORD=password123 \
-  -e POSTGRES_DB=delta_unified \
+  -e POSTGRES_PASSWORD=admin123 \
+  -e POSTGRES_DB=delta__indonesia_app \
   -p 5432:5432 \
   postgres:16-alpine
 ```
@@ -573,7 +573,7 @@ docker ps | grep postgres
 echo $DATABASE_URL
 
 # Test connection
-psql postgresql://deltauser:password123@localhost:5432/delta_unified
+psql postgresql://deltauser:admin123@localhost:5432/delta_indonesia_app
 ```
 
 ### Migration Issues
@@ -643,7 +643,7 @@ docker-compose logs -f picnew-frontend
 ```env
 NODE_ENV=production
 JWT_SECRET=<secure-random-key>
-DATABASE_URL=postgresql://prod_user:prod_pass@prod_db:5432/delta_unified
+DATABASE_URL=postgresql://prod_user:prod_pass@prod_db:5432/delta_indonesia_app
 NEXT_PUBLIC_API_URL=https://api.deltaindo.co.id
 ```
 

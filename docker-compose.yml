@@ -6,8 +6,8 @@ services:
     container_name: delta-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-deltauser}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password123}
-      POSTGRES_DB: ${POSTGRES_DB:-delta_unified}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
+      POSTGRES_DB: ${POSTGRES_DB:-delta_indonesia_app}
     ports:
       - "5432:5432"
     volumes:
@@ -48,7 +48,7 @@ services:
         - WORKDIR=apps/picnew-backend
     container_name: picnew-backend
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-deltauser}:${POSTGRES_PASSWORD:-password123}@postgres:5432/${POSTGRES_DB:-delta_unified}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-deltauser}:${POSTGRES_PASSWORD:-admin123}@postgres:5432/${POSTGRES_DB:-delta_indonesia_app}
       NODE_ENV: ${NODE_ENV:-development}
       PORT: 5001
       JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
