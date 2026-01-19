@@ -1,0 +1,263 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// SHARED / CORE MODELS
+// ============================================================================
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String?
+  name      String?
+  avatar    String?
+  role      UserRole @default(USER)
+  status    Boolean  @default(true)
+
+  // Relations
+  pic       PICUser?      @relation("UserToPIC")
+  crmContacts CRMContact[] @relation("UserToCRMContact")
+  inventory InventoryItem[] @relation("UserToInventoryItem")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  USER
+  VIEWER
+}
+
+// ============================================================================
+// PIC (Monitoring) MODULE MODELS
+// ============================================================================
+
+model PICUser {
+  id      String  @id @default(cuid())
+  userId  String  @unique
+  user    User    @relation("UserToPIC", fields: [userId], references: [id], onDelete: Cascade)
+  department String?
+  location String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("pic_users")
+}
+
+model DNPMonitoring {
+  id        String   @id @default(cuid())
+  name      String
+  location  String
+  status    MonitoringStatus @default(ACTIVE)
+  type      String?
+  data      Json?
+  notes     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("dnp_monitoring")
+}
+
+enum MonitoringStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+  OFFLINE
+}
+
+// ============================================================================
+// CRM MODULE MODELS
+// ============================================================================
+
+model CRMContact {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation("UserToCRMContact", fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  email     String?
+  phone     String?
+  whatsapp  String?
+  company   String?
+  notes     String?
+  tags      String[]   @default([])
+  status    ContactStatus @default(ACTIVE)
+
+  // Campaign tracking
+  campaigns CRMCampaign[] @relation("ContactToCampaign")
+  logs      CRMLog[]      @relation("ContactToLog")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("crm_contacts")
+}
+
+enum ContactStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+  UNSUBSCRIBED
+}
+
+model CRMCampaign {
+  id        String   @id @default(cuid())
+  name      String
+  type      CampaignType
+  status    CampaignStatus @default(DRAFT)
+  subject   String?
+  content   String
+  template  String?
+  
+  // Targeting
+  contacts  CRMContact[] @relation("ContactToCampaign")
+  tags      String[]   @default([])
+
+  // Statistics
+  totalSent   Int @default(0)
+  totalSuccess Int @default(0)
+  totalFailed  Int @default(0)
+  openRate    Float @default(0)
+  clickRate   Float @default(0)
+
+  // Schedule
+  scheduledAt DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("crm_campaigns")
+}
+
+enum CampaignType {
+  EMAIL
+  WHATSAPP
+  SMS
+  BOTH
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model CRMLog {
+  id        String   @id @default(cuid())
+  contactId String
+  contact   CRMContact @relation("ContactToLog", fields: [contactId], references: [id], onDelete: Cascade)
+  action    String
+  type      String    // 'email_sent', 'whatsapp_sent', 'email_opened', etc.
+  status    String    // 'success', 'failed', 'pending'
+  message   String?
+  metadata  Json?
+
+  createdAt DateTime @default(now())
+
+  @@map("crm_logs")
+}
+
+// ============================================================================
+// INVENTORY MODULE MODELS
+// ============================================================================
+
+model InventoryItem {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation("UserToInventoryItem", fields: [userId], references: [id], onDelete: Cascade)
+  sku       String   @unique
+  name      String
+  description String?
+  category  String?
+  quantity  Int      @default(0)
+  minimumStock Int  @default(10)
+  unit      String   @default("pcs")
+  price     Float
+  cost      Float?
+  supplier  String?
+  location  String?
+  status    InventoryStatus @default(ACTIVE)
+  image     String?
+
+  // Tracking
+  movements InventoryMovement[] @relation("ItemToMovement")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("inventory_items")
+  @@index([sku])
+  @@index([category])
+}
+
+enum InventoryStatus {
+  ACTIVE
+  INACTIVE
+  DISCONTINUED
+  RESERVED
+}
+
+model InventoryMovement {
+  id        String   @id @default(cuid())
+  itemId    String
+  item      InventoryItem @relation("ItemToMovement", fields: [itemId], references: [id], onDelete: Cascade)
+  type      MovementType
+  quantity  Int
+  reference String?    // reference ID for the movement (e.g., purchase order, sales order)
+  notes     String?
+  createdBy String?
+
+  createdAt DateTime @default(now())
+
+  @@map("inventory_movements")
+  @@index([itemId])
+  @@index([createdAt])
+}
+
+enum MovementType {
+  IN         // Stock in / Purchase
+  OUT        // Stock out / Sales
+  ADJUSTMENT // Manual adjustment
+  RETURN     // Return
+  DAMAGE     // Damaged goods
+}
+
+// ============================================================================
+// AUDIT & LOGGING
+// ============================================================================
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String
+  entity    String    // e.g., "User", "Contact", "InventoryItem"
+  entityId  String
+  changes   Json?
+  userId    String?
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  @@map("audit_logs")
+  @@index([entityId])
+  @@index([createdAt])
+}
