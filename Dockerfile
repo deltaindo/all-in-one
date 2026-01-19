@@ -9,7 +9,6 @@ COPY package*.json turbo.json ./
 # Copy packages
 COPY packages ./packages
 COPY apps ./apps
-COPY scripts ./scripts
 
 # Install dependencies
 RUN npm ci
