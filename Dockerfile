@@ -16,14 +16,25 @@ COPY apps ./apps
 # Install ALL dependencies (including dev) - this populates node_modules
 RUN npm ci --legacy-peer-deps
 
-# Build using turbo - handles all dependencies and build order
-RUN npm run build
+# Show what turbo sees
+RUN npx turbo list
+
+# Build using turbo with verbose output
+RUN npm run build 2>&1
+
+# Check what was actually built
+RUN echo "=== Checking build output ===" && \
+    find /app -type d -name dist | head -20 && \
+    echo "=== Backend files ===" && \
+    ls -la /app/apps/picnew-backend/ || echo "Backend dir missing" && \
+    echo "=== Package files ===" && \
+    ls -la /app/packages/*/dist 2>/dev/null | head -30 || echo "No package dists"
 
 # Verify backend dist was created
 RUN if [ ! -d /app/apps/picnew-backend/dist ]; then \
       echo "ERROR: Backend dist folder not created!"; \
-      echo "Checking what was built:"; \
-      find /app -type d -name dist 2>/dev/null | head -20; \
+      echo "=== Directory structure ==="; \
+      find /app/apps/picnew-backend -type f | head -20; \
       exit 1; \
     fi && \
     echo "✅ Turbo build completed - backend dist ready"
