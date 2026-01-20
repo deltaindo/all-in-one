@@ -7,7 +7,7 @@ WORKDIR /app
 RUN apk add --no-cache openssl netcat-openbsd python3 make g++
 
 # Copy root files
-COPY package*.json ./
+COPY package*.json tsconfig.json turbo.json ./
 
 # Copy packages and apps
 COPY packages ./packages
@@ -16,12 +16,11 @@ COPY apps ./apps
 # Install dependencies
 RUN npm ci --legacy-peer-deps
 
-# Compile backend directly with tsc
-WORKDIR /app/apps/picnew-backend
-RUN npx tsc
+# Compile backend - stay in /app so tsconfig path is correct
+RUN cd apps/picnew-backend && npx tsc
 
 # Verify dist was created
-RUN if [ ! -d dist ]; then echo "ERROR: dist not created"; ls -la; exit 1; fi && echo "✅ Build successful"
+RUN if [ ! -d apps/picnew-backend/dist ]; then echo "ERROR: dist not created"; find apps/picnew-backend -type f | head -20; exit 1; fi && echo "✅ Build successful"
 
 # Production stage
 FROM node:20-alpine
