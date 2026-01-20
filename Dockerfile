@@ -7,7 +7,7 @@ WORKDIR /app
 RUN apk add --no-cache openssl netcat-openbsd python3 make g++
 
 # Copy root files
-COPY package*.json tsconfig.json turbo.json ./
+COPY package*.json turbo.json tsconfig.json ./
 
 # Copy packages and apps
 COPY packages ./packages
@@ -16,8 +16,8 @@ COPY apps ./apps
 # Install ALL dependencies
 RUN npm ci --legacy-peer-deps
 
-# Build backend using npm script (handles node_modules correctly)
-RUN npm run -w @delta/picnew-backend build
+# Build using turbo (now with workspaces configured)
+RUN npm run build
 
 # Verify dist was created
 RUN if [ ! -d apps/picnew-backend/dist ]; then echo "ERROR: dist not created"; find apps/picnew-backend -type f | head -20; exit 1; fi && echo "✅ Build successful"
