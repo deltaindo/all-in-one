@@ -6,28 +6,27 @@ WORKDIR /app
 # Install required build tools
 RUN apk add --no-cache openssl netcat-openbsd python3 make g++
 
-# Copy root files
+# Copy root files FIRST
 COPY package*.json turbo.json tsconfig.json ./
 
 # Copy packages and apps
 COPY packages ./packages
 COPY apps ./apps
 
-# Install dependencies
+# Install ALL dependencies (including dev) - this populates node_modules
 RUN npm ci --legacy-peer-deps
 
-# Build using turbo (now that all packages have build scripts)
+# Build using turbo - handles all dependencies and build order
 RUN npm run build
 
-# Verify dist was created
+# Verify backend dist was created
 RUN if [ ! -d /app/apps/picnew-backend/dist ]; then \
       echo "ERROR: Backend dist folder not created!"; \
       echo "Checking what was built:"; \
-      find /app -type d -name dist -o -name build; \
+      find /app -type d -name dist 2>/dev/null | head -20; \
       exit 1; \
     fi && \
-    echo "✅ Turbo build completed successfully" && \
-    ls -la /app/apps/picnew-backend/dist/
+    echo "✅ Turbo build completed - backend dist ready"
 
 # Production stage
 FROM node:20-alpine
