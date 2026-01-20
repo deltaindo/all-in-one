@@ -6,6 +6,9 @@ WORKDIR /app
 # Install required build tools
 RUN apk add --no-cache openssl netcat-openbsd python3 make g++
 
+# Update npm to support workspace protocol
+RUN npm install -g npm@latest
+
 # Copy root files
 COPY package*.json turbo.json tsconfig.json ./
 
@@ -16,7 +19,7 @@ COPY apps ./apps
 # Install ALL dependencies
 RUN npm ci --legacy-peer-deps
 
-# Build using turbo (now with workspaces configured)
+# Build using turbo
 RUN npm run build
 
 # Verify dist was created
@@ -29,6 +32,9 @@ WORKDIR /app
 
 # Install runtime dependencies
 RUN apk add --no-cache openssl netcat-openbsd dumb-init
+
+# Update npm in production image too
+RUN npm install -g npm@latest
 
 # Set environment
 ENV NODE_ENV=production
