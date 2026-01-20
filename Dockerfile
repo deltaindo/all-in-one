@@ -16,7 +16,7 @@ COPY apps ./apps
 # Install dependencies
 RUN npm ci
 
-# Build all packages
+# Build all packages (excluding frontend)
 RUN npm run build
 
 # Production stage
@@ -33,20 +33,22 @@ ENV NODE_ENV=production
 # Copy package files
 COPY package*.json ./
 
-# Install production dependencies
+# Install production dependencies only
 RUN npm ci --only=production && npm cache clean --force
 
-# Copy built application from builder
-COPY --from=builder /app/apps/picnew-backend/dist ./apps/picnew-backend/dist
-COPY --from=builder /app/apps/web/public ./apps/web/public
-COPY --from=builder /app/apps/web/package.json ./apps/web/
+# Copy backend build from builder
 COPY --from=builder /app/apps/picnew-backend/dist ./apps/picnew-backend/dist
 COPY --from=builder /app/apps/picnew-backend/package.json ./apps/picnew-backend/
-COPY --from=builder /app/packages ./packages
-COPY --from=builder /app/apps ./apps
+
+# Copy database package (needed for Prisma)
+COPY --from=builder /app/packages/database ./packages/database
 
 # Copy node_modules
 COPY --from=builder /app/node_modules ./node_modules
+
+# Copy entrypoint script
+COPY entrypoint-script.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["/entrypoint.sh"]
