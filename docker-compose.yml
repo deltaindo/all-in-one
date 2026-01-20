@@ -38,21 +38,46 @@ services:
       - "with-redis"
 
   # ============================================================================
-  # PICNew Services
+  # PICNew Backend - Production Ready
   # ============================================================================
   picnew-backend:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        - WORKDIR=apps/picnew-backend
     container_name: picnew-backend
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-deltauser}:${POSTGRES_PASSWORD:-admin123}@postgres:5432/${POSTGRES_DB:-delta_indonesia_app}
-      NODE_ENV: ${NODE_ENV:-development}
+      NODE_ENV: ${NODE_ENV:-production}
       PORT: 5001
       JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
       JWT_EXPIRY: ${JWT_EXPIRY:-7d}
+      DB_HOST: postgres
+      DB_PORT: 5432
+    ports:
+      - "5001:5001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - delta-network
+    restart: unless-stopped
+    profiles:
+      - "picnew"
+      - "all"
+
+  picnew-backend-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: picnew-backend-dev
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-deltauser}:${POSTGRES_PASSWORD:-admin123}@postgres:5432/${POSTGRES_DB:-delta_indonesia_app}
+      NODE_ENV: development
+      PORT: 5001
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      JWT_EXPIRY: ${JWT_EXPIRY:-7d}
+      DB_HOST: postgres
+      DB_PORT: 5432
     ports:
       - "5001:5001"
     depends_on:
@@ -64,41 +89,15 @@ services:
       - ./apps/picnew-backend/src:/app/apps/picnew-backend/src
     command: npm run dev
     profiles:
-      - "picnew"
-      - "all"
-
-  picnew-frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        - WORKDIR=apps/picnew-frontend
-    container_name: picnew-frontend
-    environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5001}
-      NODE_ENV: ${NODE_ENV:-development}
-    ports:
-      - "3001:3001"
-    depends_on:
-      - picnew-backend
-    networks:
-      - delta-network
-    volumes:
-      - ./apps/picnew-frontend/src:/app/apps/picnew-frontend/src
-    command: npm run dev
-    profiles:
-      - "picnew"
-      - "all"
+      - "picnew-dev"
 
   # ============================================================================
   # Landing Page Service
   # ============================================================================
   web:
     build:
-      context: .
+      context: ./apps/web
       dockerfile: Dockerfile
-      args:
-        - WORKDIR=apps/web
     container_name: delta-web
     environment:
       NODE_ENV: ${NODE_ENV:-development}
@@ -107,7 +106,7 @@ services:
     networks:
       - delta-network
     volumes:
-      - ./apps/web/src:/app/apps/web/src
+      - ./apps/web/src:/app/src
     command: npm run dev
     profiles:
       - "web"
