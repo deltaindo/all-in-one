@@ -7,17 +7,27 @@ WORKDIR /app
 RUN apk add --no-cache openssl netcat-openbsd python3 make g++
 
 # Copy root files
-COPY package*.json turbo.json ./
+COPY package*.json turbo.json tsconfig.json ./
 
 # Copy packages and apps
 COPY packages ./packages
 COPY apps ./apps
 
 # Install dependencies
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # Build all packages (excluding frontend)
 RUN npm run build
+
+# Verify dist was created
+RUN if [ ! -d /app/apps/picnew-backend/dist ]; then \
+      echo "ERROR: dist folder not created!"; \
+      echo "Checking what was built:"; \
+      find /app -type d -name dist -o -name build; \
+      exit 1; \
+    fi && \
+    echo "✅ Backend dist created successfully" && \
+    ls -la /app/apps/picnew-backend/dist/
 
 # Production stage
 FROM node:20-alpine
@@ -34,7 +44,7 @@ ENV NODE_ENV=production
 COPY package*.json ./
 
 # Install production dependencies only
-RUN npm ci --only=production && npm cache clean --force
+RUN npm ci --only=production --legacy-peer-deps && npm cache clean --force
 
 # Copy backend build from builder
 COPY --from=builder /app/apps/picnew-backend/dist ./apps/picnew-backend/dist
