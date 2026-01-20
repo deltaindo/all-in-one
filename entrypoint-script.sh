@@ -65,4 +65,4 @@ cd /app
 # Step 4: Start Application
 echo ""
 echo "🚀 Starting PICNew Backend..."
-exec npm run start
+exec node apps/picnew-backend/dist/index.js
