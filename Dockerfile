@@ -16,18 +16,18 @@ COPY apps ./apps
 # Install dependencies
 RUN npm ci --legacy-peer-deps
 
-# Build all packages (excluding frontend)
-RUN npm run build
+# Build ONLY the backend (skip turbo complexity)
+WORKDIR /app/apps/picnew-backend
+RUN npx tsc
 
 # Verify dist was created
-RUN if [ ! -d /app/apps/picnew-backend/dist ]; then \
+RUN if [ ! -d dist ]; then \
       echo "ERROR: dist folder not created!"; \
-      echo "Checking what was built:"; \
-      find /app -type d -name dist -o -name build; \
+      ls -la /app/apps/picnew-backend/; \
       exit 1; \
     fi && \
-    echo "✅ Backend dist created successfully" && \
-    ls -la /app/apps/picnew-backend/dist/
+    echo "✅ Backend TypeScript compiled successfully" && \
+    ls -la dist/
 
 # Production stage
 FROM node:20-alpine
