@@ -1,0 +1,128 @@
+# Build stage
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Install required build tools
+RUN apk add --no-cache openssl netcat-openbsd python3 make g++
+
+# Copy root files
+COPY package*.json turbo.json ./
+
+# Copy packages and apps
+COPY packages ./packages
+COPY apps ./apps
+
+# Install dependencies
+RUN npm ci
+
+# Build all packages
+RUN npm run build
+
+# Production stage
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install runtime dependencies
+RUN apk add --no-cache openssl netcat-openbsd dumb-init
+
+# Set environment
+ENV NODE_ENV=production
+
+# Copy package files
+COPY package*.json ./
+
+# Install production dependencies
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy built application from builder
+COPY --from=builder /app/apps/web/.next ./apps/web/.next
+COPY --from=builder /app/apps/web/public ./apps/web/public
+COPY --from=builder /app/apps/web/package.json ./apps/web/
+COPY --from=builder /app/apps/picnew-backend/dist ./apps/picnew-backend/dist
+COPY --from=builder /app/apps/picnew-backend/package.json ./apps/picnew-backend/
+COPY --from=builder /app/packages ./packages
+COPY --from=builder /app/apps ./apps
+
+# Copy node_modules
+COPY --from=builder /app/node_modules ./node_modules
+
+# Create startup script inline
+RUN cat > /entrypoint.sh << 'EOF'
+#!/bin/bash
+set -e
+
+echo "============================================"
+echo "🚀 PICNew Backend Startup Script"
+echo "============================================"
+
+# Wait for database to be ready
+echo "⏳ Waiting for database to be ready..."
+DB_HOST=${DB_HOST:-postgres}
+DB_PORT=${DB_PORT:-5432}
+MAX_ATTEMPTS=30
+ATTEMPT=1
+
+while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+  if nc -z $DB_HOST $DB_PORT 2>/dev/null; then
+    echo "✅ Database is ready!"
+    break
+  fi
+  
+  echo "  Attempt $ATTEMPT/$MAX_ATTEMPTS: Waiting for $DB_HOST:$DB_PORT..."
+  sleep 2
+  ATTEMPT=$((ATTEMPT + 1))
+done
+
+if [ $ATTEMPT -gt $MAX_ATTEMPTS ]; then
+  echo "❌ Database failed to start after $MAX_ATTEMPTS attempts"
+  exit 1
+fi
+
+# Change to database package directory
+cd packages/database
+
+# Step 1: Generate Prisma Client
+echo ""
+echo "📦 Step 1: Generating Prisma Client..."
+npx prisma generate
+
+# Step 2: Run Migrations
+echo ""
+echo "🔄 Step 2: Running Database Migrations..."
+npx prisma migrate deploy
+
+# Step 3: Check if seed has already been run
+echo ""
+echo "🌱 Step 3: Checking if seeding is needed..."
+
+# Create a marker file to track if we've seeded
+SEED_MARKER="/app/.seeded"
+
+if [ ! -f "$SEED_MARKER" ]; then
+  echo "💾 Seeding database with master data..."
+  node prisma/seed.js
+  
+  # Mark as seeded
+  touch "$SEED_MARKER"
+  echo "✅ Database seeded successfully!"
+else
+  echo "⏭️  Database already seeded, skipping..."
+fi
+
+# Back to app root
+cd /app
+
+# Step 4: Start Application
+echo ""
+echo "🚀 Starting PICNew Backend..."
+exec npm run start
+EOF
+
+chmod +x /entrypoint.sh
+
+EXPOSE 5001
+
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["/entrypoint.sh"]

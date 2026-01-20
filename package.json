@@ -5,10 +5,11 @@
   "private": true,
   "scripts": {
     "dev": "turbo run dev --parallel",
-    "build": "turbo run build",
-    "start": "turbo run start",
+    "build": "turbo run build --filter=!@picnew/frontend",
+    "start": "node apps/picnew-backend/dist/main.js",
     "lint": "turbo run lint",
     "test": "turbo run test",
+    "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md}\"",
     "type-check": "turbo run type-check",
     "clean": "turbo run clean && find . -type d -name node_modules -exec rm -rf {} + 2>/dev/null || true",
     "db:push": "cd packages/database && npx prisma db push",
@@ -18,7 +19,12 @@
     "db:seed": "cd packages/database && node prisma/seed.js",
     "db:studio": "cd packages/database && npx prisma studio"
   },
-  "keywords": ["next.js", "monorepo", "turborepo", "typescript"],
+  "keywords": [
+    "next.js",
+    "monorepo",
+    "turborepo",
+    "typescript"
+  ],
   "author": "Delta Indonesia",
   "license": "MIT",
   "devDependencies": {

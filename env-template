@@ -1,0 +1,45 @@
+# ============================================================================
+# DATABASE CONFIGURATION
+# ============================================================================
+
+# LOCAL DEVELOPMENT (using docker postgres)
+# DATABASE_URL=postgresql://deltauser:admin123@localhost:5432/delta_indonesia_app
+
+# NEON PRODUCTION (replace with your actual Neon credentials)
+DATABASE_URL=postgresql://neondb_owner:YOUR_PASSWORD@ep-YOUR_ENDPOINT.YOUR_REGION.neon.tech/neondb?sslmode=require
+
+# ============================================================================
+# APPLICATION SETTINGS
+# ============================================================================
+NODE_ENV=development
+PORT=5001
+
+# ============================================================================
+# AUTHENTICATION
+# ============================================================================
+JWT_SECRET=your-super-secret-jwt-key-change-in-production
+JWT_EXPIRY=7d
+
+# ============================================================================
+# DATABASE CONNECTION SETTINGS (used by startup script)
+# ============================================================================
+# For local development
+POSTGRES_USER=deltauser
+POSTGRES_PASSWORD=admin123
+POSTGRES_DB=delta_indonesia_app
+
+# For the startup script to wait for DB
+# - local: postgres (docker service name)
+# - production: your host IP or domain
+DB_HOST=postgres
+DB_PORT=5432
+
+# ============================================================================
+# FRONTEND SETTINGS
+# ============================================================================
+NEXT_PUBLIC_API_URL=http://localhost:5001
+
+# ============================================================================
+# OPTIONAL: REDIS (if using cache)
+# ============================================================================
+# REDIS_URL=redis://localhost:6379

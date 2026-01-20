@@ -1,0 +1,134 @@
+version: '3.8'
+
+services:
+  # For local development - use local postgres
+  postgres:
+    image: postgres:16-alpine
+    container_name: delta-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-deltauser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
+      POSTGRES_DB: ${POSTGRES_DB:-delta_indonesia_app}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-deltauser}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - delta-network
+    # Only use for local development
+    profiles:
+      - "local"
+      - "all"
+
+  redis:
+    image: redis:7-alpine
+    container_name: delta-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - delta-network
+    profiles:
+      - "with-redis"
+      - "all"
+
+  # ============================================================================
+  # PICNew Services
+  # ============================================================================
+  picnew-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: picnew-backend
+    environment:
+      # For Neon production: Use DATABASE_URL from .env
+      # For local: Use local postgres connection
+      DATABASE_URL: ${DATABASE_URL:-postgresql://deltauser:admin123@postgres:5432/delta_indonesia_app}
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${PORT:-5001}
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      JWT_EXPIRY: ${JWT_EXPIRY:-7d}
+      # For startup script to know where DB is
+      DB_HOST: ${DB_HOST:-postgres}
+      DB_PORT: ${DB_PORT:-5432}
+    ports:
+      - "${PORT:-5001}:${PORT:-5001}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - delta-network
+    volumes:
+      - ./apps/picnew-backend/src:/app/apps/picnew-backend/src
+    restart: unless-stopped
+    # Volume to persist seeding marker
+    # This prevents re-seeding on restart
+    tmpfs:
+      - /app/.seeded
+    profiles:
+      - "picnew"
+      - "local"
+      - "all"
+
+  picnew-frontend:
+    build:
+      context: ./apps/picnew-frontend
+      dockerfile: Dockerfile
+    container_name: picnew-frontend
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5001}
+      NODE_ENV: ${NODE_ENV:-development}
+    ports:
+      - "3001:3001"
+    depends_on:
+      - picnew-backend
+    networks:
+      - delta-network
+    volumes:
+      - ./apps/picnew-frontend/src:/app/apps/picnew-frontend/src
+    restart: unless-stopped
+    profiles:
+      - "picnew"
+      - "local"
+      - "all"
+
+  # ============================================================================
+  # Landing Page Service
+  # ============================================================================
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: delta-web
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+    ports:
+      - "3000:3000"
+    networks:
+      - delta-network
+    volumes:
+      - ./apps/web/src:/app/apps/web/src
+    restart: unless-stopped
+    profiles:
+      - "web"
+      - "local"
+      - "all"
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  delta-network:
+    driver: bridge
